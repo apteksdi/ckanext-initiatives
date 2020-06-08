@@ -17,6 +17,6 @@ setup(
     package_data={'ckanext.initiatives': ['*.json', 'templates/*.html', 'templates/*/*.html', 'templates/*/*/*.html', 'static/*.css', 'static/*.png', 'static/*.jpg', 'static/*.css', 'static/*.ico']},
     entry_points="""
         [ckan.plugins]
-        initiatives = ckanext.initiatives.plugins:BulkPlugin
+        initiatives = ckanext.initiatives.plugins:InitiativesPlugin
     """
 )
