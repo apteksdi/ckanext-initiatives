@@ -1,7 +1,7 @@
 
 import logging
 import ckan.plugins as plugins
-from ckanext.initiatives import action, auth
+from ckanext.initiatives import action, auth, helpers
 
 
 
@@ -10,7 +10,9 @@ log = logging.getLogger(__name__)
 
 class InitiativesPlugin(plugins.SingletonPlugin):
     plugins.implements(plugins.IActions)
+    plugins.implements(plugins.IConfigurer)
     plugins.implements(plugins.IAuthFunctions)
+    plugins.implements(plugins.ITemplateHelpers)
 
     # IConfigurer
     def update_config(self, config):
@@ -29,3 +31,8 @@ class InitiativesPlugin(plugins.SingletonPlugin):
                 'resource_search': action.initiatives_resource_search,
                 'package_search': action.initiatives_package_search,
                 'initiatives_check_access': action.initiatives_check_access }
+
+    # ITemplateHelpers
+    def get_helpers(self):
+        return {"initiatives_get_user_id": helpers.initiatives_get_user_id}
+ 
