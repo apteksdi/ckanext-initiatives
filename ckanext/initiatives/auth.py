@@ -13,8 +13,6 @@ log = getLogger(__name__)
 
 @toolkit.auth_allow_anonymous_access
 def initiatives_resource_show(context, data_dict=None):
-    return {"success": False}
-
     resource = data_dict.get("resource", context.get("resource", {}))
     if not resource:
         resource = logic_auth.get_resource_object(context, data_dict)

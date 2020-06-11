@@ -9,6 +9,7 @@ import ckan.lib.mailer as mailer
 import ckan.logic as logic
 import ckan.plugins.toolkit as toolkit
 import json
+import datetime
 import functools
 
 try:
@@ -23,6 +24,12 @@ from logging import getLogger
 log = getLogger(__name__)
 
 
+def get_key_maybe_extras(obj, name):
+    # scheming may have put the field on 'extras'
+    extras = obj.get("extras", {})
+    return obj.get(name, extras.get(name, ""))
+
+
 def initiatives_get_username_from_context(context):
     auth_user_obj = context.get("auth_user_obj", None)
     user_name = ""
@@ -34,37 +41,81 @@ def initiatives_get_username_from_context(context):
     return user_name
 
 
-def check_args(nargs):
+def check_extra_args(nargs):
     def decorator_check_args(fn):
         @functools.wraps(fn)
-        def check(*args):
+        def check(u, r, p, *args):
             if len(args) != nargs:
                 return {
                     "success": False,
                     "msg": "Resource access restricted to registered users",
                 }
+            return fn(u, r, p, *args)
+
         return check
+
     return decorator_check_args
 
 
-@check_args(2)
-def apply_access_after(field_name, days):
+@check_extra_args(0)
+def apply_organization_member(user, resource_dict, package_dict):
+    # must be logged in as a registered user
+    if not user:
+        return {
+            "success": False,
+            "msg": "Resource access restricted to registered users",
+        }
+
+    pkg_organization_id = package_dict.get("owner_org", "")
+    # check if the user is a member of this organisation
+    for org in logic.get_action("organization_list_for_user")(
+        {"user": user}, {"permission": "read"}
+    ):
+        if org.get("id", "") == pkg_organization_id:
+            return {
+                "success": True,
+            }
+
     return {
         "success": False,
         "msg": "Resource access restricted to registered users",
     }
 
 
-@check_args(0)
-def apply_organization_member():
-    return {
-        "success": False,
-        "msg": "Resource access restricted to registered users",
-    }
+@check_extra_args(2)
+def apply_access_after(user, resource_dict, package_dict, field_name, days):
+    """
+    access to resources if the date (YYYY-MM-DD) in `field_name` is
+    more than `days` days ago. if not, delegates to `apply_organization_member`
+    """
+
+    try:
+        days = int(days)
+    except ValueError:
+        days = None
+
+    dt_str = get_key_maybe_extras(package_dict, field_name)
+    try:
+        dt = datetime.datetime.strptime(dt_str, "%Y-%m-%d").date()
+    except ValueError:
+        dt = None
+    except TypeError:
+        dt = None
+
+    if days is None or dt is None:
+        return apply_organization_member(user, resource_dict, package_dict)
+
+    today = datetime.date.today()
+    d_days = (today - dt).days
+
+    if d_days >= days:
+        return {"success": True}
+
+    return apply_organization_member(user, resource_dict, package_dict)
 
 
-@check_args(0)
-def apply_public():
+@check_extra_args(0)
+def apply_public(user, resource_dict, package_dict):
     return {
         "success": True,
         "msg": "Resource access restricted to registered users",
@@ -72,7 +123,7 @@ def apply_public():
 
 
 PERMISSION_HANDLERS = {
-    "access_after": apply_access_after,
+    "public_after_embargo": apply_access_after,
     "organization_member": apply_organization_member,
     "public": apply_public,
 }
@@ -93,7 +144,8 @@ def parse_resource_permissions(permission_str):
     # data beyond organization members
     if name not in PERMISSION_HANDLERS:
         name = "organization_member"
-    return lambda: PERMISSION_HANDLERS[name](args)
+
+    return lambda u, r, p: PERMISSION_HANDLERS[name](u, r, p, *args)
 
 
 def initiatives_check_user_resource_access(user, resource_dict, package_dict):
@@ -103,63 +155,7 @@ def initiatives_check_user_resource_access(user, resource_dict, package_dict):
     called
     """
 
-    permission_handler = parse_resource_permissions(
-        package_dict.get("resource_permissions", "")
-    )
+    resource_permissions = get_key_maybe_extras(package_dict, "resource_permissions")
+    permission_handler = parse_resource_permissions(resource_permissions)
 
-    return permission_handler()
-
-    # Registered user
-    if not user:
-        return {
-            "success": False,
-            "msg": "Resource access restricted to registered users",
-        }
-    else:
-        if initiatives_level == "registered" or not initiatives_level:
-            return {"success": True}
-
-    # Since we have a user, check if it is in the allowed list
-    if user in allowed_users:
-        return {"success": True}
-    elif initiatives_level == "only_allowed_users":
-        return {
-            "success": False,
-            "msg": "Resource access restricted to allowed users only",
-        }
-
-    # Get organization list
-    user_organization_dict = {}
-
-    context = {"user": user}
-    data_dict = {"permission": "read"}
-
-    for org in logic.get_action("organization_list_for_user")(context, data_dict):
-        name = org.get("name", "")
-        id = org.get("id", "")
-        if name and id:
-            user_organization_dict[id] = name
-
-    # Any Organization Members (Trusted Users)
-    if not user_organization_dict:
-        return {
-            "success": False,
-            "msg": "Resource access restricted to members of an organization",
-        }
-
-    if initiatives_level == "any_organization":
-        return {"success": True}
-
-    pkg_organization_id = package_dict.get("owner_org", "")
-
-    # Same Organization Members
-    if initiatives_level == "same_organization":
-        if pkg_organization_id in user_organization_dict.keys():
-            return {"success": True}
-
-    return {
-        "success": False,
-        "msg": (
-            "Resource access restricted to same " "organization ({}) members"
-        ).format(pkg_organization_id),
-    }
+    return permission_handler(user, resource_dict, package_dict)
