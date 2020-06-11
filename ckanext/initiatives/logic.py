@@ -9,6 +9,7 @@ import ckan.lib.mailer as mailer
 import ckan.logic as logic
 import ckan.plugins.toolkit as toolkit
 import json
+import functools
 
 try:
     # CKAN 2.7 and later
@@ -33,49 +34,80 @@ def initiatives_get_username_from_context(context):
     return user_name
 
 
-def initiatives_get_initiatives_dict(resource_dict):
-    initiatives_dict = {"level": "public", "allowed_users": []}
+def check_args(nargs):
+    def decorator_check_args(fn):
+        @functools.wraps(fn)
+        def check(*args):
+            if len(args) != nargs:
+                return {
+                    "success": False,
+                    "msg": "Resource access restricted to registered users",
+                }
+        return check
+    return decorator_check_args
 
-    # the ckan plugins ckanext-scheming and ckanext-composite
-    # change the structure of the resource dict and the nature of how
-    # to access our restricted field values
-    if resource_dict:
-        # the dict might exist as a child inside the extras dict
-        extras = resource_dict.get("extras", {})
-        # or the dict might exist as a direct descendant of the resource dict
-        restricted = resource_dict.get("restricted", extras.get("restricted", {}))
-        if not isinstance(restricted, dict):
-            # if the restricted property does exist, but not as a dict,
-            # we may need to parse it as a JSON string to gain access to the values.
-            # as is the case when making composite fields
-            try:
-                restricted = json.loads(restricted)
-            except ValueError:
-                restricted = {}
 
-        if restricted:
-            initiatives_level = restricted.get("level", "public")
-            allowed_users = restricted.get("allowed_users", "")
-            if not isinstance(allowed_users, list):
-                allowed_users = allowed_users.split(",")
-            initiatives_dict = {
-                "level": initiatives_level,
-                "allowed_users": allowed_users,
-            }
+@check_args(2)
+def apply_access_after(field_name, days):
+    return {
+        "success": False,
+        "msg": "Resource access restricted to registered users",
+    }
 
-    return initiatives_dict
+
+@check_args(0)
+def apply_organization_member():
+    return {
+        "success": False,
+        "msg": "Resource access restricted to registered users",
+    }
+
+
+@check_args(0)
+def apply_public():
+    return {
+        "success": True,
+        "msg": "Resource access restricted to registered users",
+    }
+
+
+PERMISSION_HANDLERS = {
+    "access_after": apply_access_after,
+    "organization_member": apply_organization_member,
+    "public": apply_public,
+}
+
+
+def parse_resource_permissions(permission_str):
+    """
+    syntax is:
+    handler_name:arg1:arg2
+    """
+    parts = [t.strip() for t in permission_str.split(":")]
+    if len(parts) > 0:
+        name, args = parts[0], parts[1:]
+    else:
+        name = ""
+        args = []
+    # a safe, restrictive default: we never seek to restrict
+    # data beyond organization members
+    if name not in PERMISSION_HANDLERS:
+        name = "organization_member"
+    return lambda: PERMISSION_HANDLERS[name](args)
 
 
 def initiatives_check_user_resource_access(user, resource_dict, package_dict):
+    """
+    note: calling methods will check if the user has write-access to the enclosing
+    package (they are an admin or manager), in which case this method will not be
+    called
+    """
 
-    initiatives_dict = initiatives_get_initiatives_dict(resource_dict)
+    permission_handler = parse_resource_permissions(
+        package_dict.get("resource_permissions", "")
+    )
 
-    initiatives_level = initiatives_dict.get("level", "public")
-    allowed_users = initiatives_dict.get("allowed_users", [])
-
-    # Public resources (DEFAULT)
-    if not initiatives_level or initiatives_level == "public":
-        return {"success": True}
+    return permission_handler()
 
     # Registered user
     if not user:

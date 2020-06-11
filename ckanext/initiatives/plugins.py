@@ -27,9 +27,6 @@ class InitiativesPlugin(plugins.SingletonPlugin):
     # IActions
     def get_actions(self):
         return {'resource_view_list': action.initiatives_resource_view_list,
-                'package_show': action.initiatives_package_show,
-                'resource_search': action.initiatives_resource_search,
-                'package_search': action.initiatives_package_search,
                 'initiatives_check_access': action.initiatives_check_access }
 
     # ITemplateHelpers
