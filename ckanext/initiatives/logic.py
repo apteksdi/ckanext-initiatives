@@ -24,6 +24,23 @@ from logging import getLogger
 log = getLogger(__name__)
 
 
+class UserOrganizations:
+    def __init__(self, user):
+        self.org_names = set()
+        self.org_ids = set()
+
+        context = {"user": user}
+        data_dict = {"permission": "read"}
+
+        for org in logic.get_action("organization_list_for_user")(context, data_dict):
+            org_name = org.get("name")
+            if org_name is not None:
+                self.org_names.add(org_name)
+            org_id = org.get("id")
+            if org_id is not None:
+                self.org_ids.add(org_id)
+
+
 def get_key_maybe_extras(obj, name):
     # scheming may have put the field on 'extras'
     extras = obj.get("extras", {})
@@ -41,15 +58,23 @@ def initiatives_get_username_from_context(context):
     return user_name
 
 
+def access_granted():
+    return {"success": True}
+
+
+def access_denied():
+    return {
+        "success": False,
+        "msg": "Resource access restricted to registered users",
+    }
+
+
 def check_extra_args(nargs):
     def decorator_check_args(fn):
         @functools.wraps(fn)
         def check(u, r, p, *args):
             if len(args) != nargs:
-                return {
-                    "success": False,
-                    "msg": "Resource access restricted to registered users",
-                }
+                return access_denied()
             return fn(u, r, p, *args)
 
         return check
@@ -61,39 +86,45 @@ def check_extra_args(nargs):
 def apply_organization_member(user, resource_dict, package_dict):
     # must be logged in as a registered user
     if not user:
-        return {
-            "success": False,
-            "msg": "Resource access restricted to registered users",
-        }
+        return access_denied()
 
     pkg_organization_id = package_dict.get("owner_org", "")
-    # check if the user is a member of this organisation
-    for org in logic.get_action("organization_list_for_user")(
-        {"user": user}, {"permission": "read"}
-    ):
-        if org.get("id", "") == pkg_organization_id:
-            return {
-                "success": True,
-            }
 
-    return {
-        "success": False,
-        "msg": "Resource access restricted to registered users",
-    }
+    # check if the user is a full consortium member
+    user_orgs = UserOrganizations(user)
+
+    if pkg_organization_id in user_orgs.org_ids:
+        return access_granted()
+    return access_denied()
 
 
-@check_extra_args(2)
-def apply_access_after(user, resource_dict, package_dict, field_name, days):
+@check_extra_args(3)
+def apply_access_after(
+    user, resource_dict, package_dict, field_name, days, consortium_org_name
+):
     """
-    access to resources if the date (YYYY-MM-DD) in `field_name` is
-    more than `days` days ago. if not, delegates to `apply_organization_member`
+    access to resources if the user is:
+      - a member of owner_org; and
+      - the date (YYYY-MM-DD) in `field_name` is more than `days` days ago
+    OR
+      - the user is a member of `consortium_org_name` (which can be used to track
+      users who are members of the consortium
     """
 
+    # must be logged in as a registered user
+    if not user:
+        return access_denied()
+
+    # check if the user is a full consortium member
+    user_orgs = UserOrganizations(user)
+    if consortium_org_name and consortium_org_name in user_orgs.org_names:
+        return access_granted()
+
+    # check if the data is out of embargo
     try:
         days = int(days)
     except ValueError:
         days = None
-
     dt_str = get_key_maybe_extras(package_dict, field_name)
     try:
         dt = datetime.datetime.strptime(dt_str, "%Y-%m-%d").date()
@@ -102,28 +133,27 @@ def apply_access_after(user, resource_dict, package_dict, field_name, days):
     except TypeError:
         dt = None
 
+    # we can't work out the dates: deny access
     if days is None or dt is None:
-        return apply_organization_member(user, resource_dict, package_dict)
+        return access_denied()
 
     today = datetime.date.today()
     d_days = (today - dt).days
-
     if d_days >= days:
-        return {"success": True}
-
-    return apply_organization_member(user, resource_dict, package_dict)
+        # out of embargo: grant access if the user is a member of the owner_org
+        return apply_organization_member(user, resource_dict, package_dict)
+    else:
+        # data in embargo: deny access
+        return access_denied()
 
 
 @check_extra_args(0)
 def apply_public(user, resource_dict, package_dict):
-    return {
-        "success": True,
-        "msg": "Resource access restricted to registered users",
-    }
+    return access_granted()
 
 
 PERMISSION_HANDLERS = {
-    "public_after_embargo": apply_access_after,
+    "organization_member_after_embargo": apply_access_after,
     "organization_member": apply_organization_member,
     "public": apply_public,
 }
