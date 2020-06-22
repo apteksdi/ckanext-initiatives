@@ -3,7 +3,7 @@ from setuptools import setup
 
 setup(
     name='ckanext-initiatives',
-    version='0.0.2',
+    version='0.0.4',
     description='',
     license='GPL3',
     author='Grahame Bowland, QCIF',
