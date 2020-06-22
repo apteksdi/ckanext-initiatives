@@ -64,8 +64,6 @@ def initiatives_check_access(context, data_dict):
     if not resource_id:
         raise ckan.logic.ValidationError("Missing resource_id")
 
-    log.debug("action.initiatives_check_access: user_name = " + str(user_name))
-
     log.debug("checking package " + str(package_id))
     package_dict = ckan.logic.get_action("package_show")(
         dict(context, return_type="dict"), {"id": package_id}
