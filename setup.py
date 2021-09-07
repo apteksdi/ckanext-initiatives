@@ -3,11 +3,11 @@ from setuptools import setup
 
 setup(
     name='ckanext-initiatives',
-    version='1.0.0',
+    version='0.0.4',
     description='',
     license='GPL3',
-    author='Bioplatforms Australia',
-    author_email='help@bioplatforms.com',
+    author='Grahame Bowland, QCIF',
+    author_email='grahame.bowland@qcif.edu.au',
     url='https://github.com/BioplatformsAustralia/ckanext-initiatives/',
     namespace_packages=['ckanext'],
     packages=['ckanext.initiatives'],
