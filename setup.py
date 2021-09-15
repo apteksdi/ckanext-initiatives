@@ -3,7 +3,7 @@ from setuptools import setup
 
 setup(
     name='ckanext-initiatives',
-    version='1.0.0',
+    version='1.0.1',
     description='',
     license='GPL3',
     author='Bioplatforms Australia',
@@ -14,7 +14,7 @@ setup(
     zip_safe=False,
     include_package_data=True,
     package_dir={'ckanext.initiatives': 'ckanext/initiatives'},
-    package_data={'ckanext.initiatives': ['*.json', 'templates/*.html', 'templates/*/*.html', 'templates/*/*/*.html', 'static/*.css', 'static/*.png', 'static/*.jpg', 'static/*.css', 'static/*.ico']},
+    package_data={'ckanext.initiatives': ['*.json', 'templates/*.html', 'templates/*/*.html', 'templates/*/*/*.html', 'templates/*/*/*/*.html','static/*.css', 'static/*.png', 'static/*.jpg', 'static/*.css', 'static/*.ico']},
     entry_points="""
         [ckan.plugins]
         initiatives = ckanext.initiatives.plugins:InitiativesPlugin
