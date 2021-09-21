@@ -2,8 +2,10 @@
 
 {% if user_id %}
 <div class="dropdown btn-group">
+    {% block resource_item_request_access %}
     <a href="mailto:help@bioplatforms.com" class="btn"><i class="fa fa-icon fa-unlock-alt"
                                                           style="margin-right: 5px;"></i>Request Access</a>
+    {% endblock %}
 </div>
 {% else %}
 <div class="dropdown btn-group restricted-link">
