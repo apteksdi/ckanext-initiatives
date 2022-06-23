@@ -16,7 +16,7 @@ def initiatives_resource_show(context, data_dict=None):
     resource = data_dict.get("resource", context.get("resource", {}))
     if not resource:
         resource = logic_auth.get_resource_object(context, data_dict)
-    if type(resource) is not dict:
+    if not isinstance(resource, dict):
         resource = resource.as_dict()
 
     # Ensure user who can edit the package can see the resource
