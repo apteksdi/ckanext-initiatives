@@ -3,6 +3,7 @@
 from __future__ import unicode_literals
 import ckan.authz as authz
 from ckan.common import _
+from ckan.common import config
 
 from ckan.lib.base import render_jinja2
 import ckan.lib.mailer as mailer
@@ -11,13 +12,6 @@ import ckan.plugins.toolkit as toolkit
 import json
 import datetime
 import functools
-
-try:
-    # CKAN 2.7 and later
-    from ckan.common import config
-except ImportError:
-    # CKAN 2.6 and earlier
-    from pylons import config
 
 from logging import getLogger
 
