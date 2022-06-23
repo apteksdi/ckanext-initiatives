@@ -17,7 +17,6 @@ from ckan.logic.action.get import resource_view_list
 from ckan.logic import side_effect_free
 from ckanext.initiatives import auth
 from ckanext.initiatives import logic
-import json
 
 from logging import getLogger
 
