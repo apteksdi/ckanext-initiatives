@@ -1,8 +1,6 @@
-
 import logging
 import ckan.plugins as plugins
 from ckanext.initiatives import action, auth, helpers
-
 
 
 log = logging.getLogger(__name__)
@@ -21,15 +19,18 @@ class InitiativesPlugin(plugins.SingletonPlugin):
 
     # IAuthFunctions
     def get_auth_functions(self):
-        return {'resource_show': auth.initiatives_resource_show,
-                'resource_view_show': auth.initiatives_resource_show}
+        return {
+            "resource_show": auth.initiatives_resource_show,
+            "resource_view_show": auth.initiatives_resource_show,
+        }
 
     # IActions
     def get_actions(self):
-        return {'resource_view_list': action.initiatives_resource_view_list,
-                'initiatives_check_access': action.initiatives_check_access }
+        return {
+            "resource_view_list": action.initiatives_resource_view_list,
+            "initiatives_check_access": action.initiatives_check_access,
+        }
 
     # ITemplateHelpers
     def get_helpers(self):
         return {"initiatives_get_user_id": helpers.initiatives_get_user_id}
- 

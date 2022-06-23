@@ -69,4 +69,3 @@ def initiatives_check_access(context, data_dict):
     return logic.initiatives_check_user_resource_access(
         user_name, resource_dict, package_dict
     )
-
