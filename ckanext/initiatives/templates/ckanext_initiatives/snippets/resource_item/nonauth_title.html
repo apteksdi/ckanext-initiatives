@@ -1,5 +1,5 @@
 <span class="restricted-item">
-    <a class="heading restricted-item" disabled="true" href="#" title="{{ res.name or res.description }}">{{ h.resource_display_name(res) | truncate(35) }} {{ _('Access denied') }} <span
+    <a class="heading restricted-item" disabled="true" href="{{ url }}" title="{{ res.name or res.description }}">{{ h.resource_display_name(res) | truncate(35) }} {{ _('Metadata Only') }} <span
             class="format-label" property="dc:format"
             data-format="{{ res.format.lower() or 'data' }}">{{ h.get_translated(res, 'format') }}</span>
             {{ h.popular('views', res.tracking_summary.total, min=10) if res.tracking_summary }}
